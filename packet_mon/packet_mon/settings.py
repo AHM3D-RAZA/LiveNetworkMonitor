@@ -127,12 +127,12 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'gnsmonitor9@gmail.com'
-EMAIL_HOST_PASSWORD = 'qavjikcsbvcycrst'
-ALERT_RECIPIENTS   = ['gnsmonitor9@gmail.com']  # list of email addresses
+EMAIL_HOST_USER = 'youremail@example.com'
+EMAIL_HOST_PASSWORD = '16wordpass'
+ALERT_RECIPIENTS   = ['youremail@exmaple.com']  # list of email addresses
 
 #GNS PROJECT ID
-GNS_PROJECT_ID = 'acd0c89f-79ba-4294-8546-f4ee49fa8103' #'0cfc7a2c-815a-4a6e-aa01-ee62f09c93df'
+GNS_PROJECT_ID = 'yourgnsprojectid'
 
 
 #SNMP INFO
