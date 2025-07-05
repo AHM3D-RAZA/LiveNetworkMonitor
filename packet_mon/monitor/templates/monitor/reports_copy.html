@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reports - Network Monitoring</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="container py-4">
+    <h2>Weekly Reports</h2>
+
+    <div class="row gy-4">
+      <div class="col-md-6">
+        <canvas id="cpuChart" height="200"></canvas>
+      </div>
+      <div class="col-md-6">
+        <canvas id="memoryChart" height="200"></canvas>
+      </div>
+      <div class="col-md-6">
+        <canvas id="latencyChart" height="200"></canvas>
+      </div>
+      <div class="col-md-6">
+        <canvas id="alertsChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // 1) Initialize empty charts
+    const cpuCtx     = document.getElementById('cpuChart').getContext('2d');
+    const memoryCtx  = document.getElementById('memoryChart').getContext('2d');
+    const latencyCtx = document.getElementById('latencyChart').getContext('2d');
+    const alertsCtx  = document.getElementById('alertsChart').getContext('2d');
+
+    const cpuChart = new Chart(cpuCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label:'CPU %', data: [] }] },
+      options: { responsive: true, scales:{ y:{ beginAtZero:true, max:100 } } }
+    });
+    const memoryChart = new Chart(memoryCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label:'Memory %', data: [] }] },
+      options: { responsive: true, scales:{ y:{ beginAtZero:true, max:100 } } }
+    });
+    const latencyChart = new Chart(latencyCtx, {
+      type: 'line',
+      data: { labels: [], datasets: [{ label:'Latency (ms)', data: [] }] },
+      options: { responsive: true, scales:{ y:{ beginAtZero:true } } }
+    });
+    const alertsChart = new Chart(alertsCtx, {
+      type: 'doughnut',
+      data: { labels: [], datasets: [{ data: [] }] },
+      options: { responsive: true }
+    });
+
+    // 2) Fetch & populate metrics
+    async function loadMetrics() {
+      const res  = await fetch('/api/reports/metrics/');
+      const json = await res.json();
+      cpuChart.data.labels             = json.labels;
+      cpuChart.data.datasets[0].data   = json.cpu;
+      cpuChart.update();
+
+      memoryChart.data.labels          = json.labels;
+      memoryChart.data.datasets[0].data= json.memory;
+      memoryChart.update();
+
+      latencyChart.data.labels         = json.labels;
+      latencyChart.data.datasets[0].data= json.latency;
+      latencyChart.update();
+    }
+
+    // 3) Fetch & populate alerts
+    async function loadAlerts() {
+      const res  = await fetch('/api/reports/alerts/');
+      const json = await res.json();
+      alertsChart.data.labels         = json.labels;
+      alertsChart.data.datasets[0].data = json.data;
+      alertsChart.update();
+    }
+
+    // 4) Kick off on load
+    document.addEventListener('DOMContentLoaded', () => {
+      loadMetrics();
+      loadAlerts();
+    });
+  </script>
+</body>
+</html>

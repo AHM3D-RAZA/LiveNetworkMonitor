@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Logs - Network Monitoring</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/monitor/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <nav class="col-md-2 d-none d-md-block sidebar p-3">
+      <h4>Network Monitoring</h4>
+      <ul class="nav flex-column mt-4">
+        <li class="nav-item">
+          <a class="nav-link" href="/"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        </li>
+        
+        <li class="nav-item">
+          <a class="nav-link active" href="/view_log/"><i class="bi bi-journal-text"></i> View Logs</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="/reports/"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
+        </li>
+      </ul>
+
+      <div class="status-legend mt-4">
+        <h5>Log Severity</h5>
+        <div class="legend-item"><span class="status-circle bg-danger"></span> Critical</div>
+        <div class="legend-item"><span class="status-circle bg-warning text-dark"></span> Warning</div>
+        <div class="legend-item"><span class="status-circle bg-info"></span> Informational</div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="col-md-10 ms-sm-auto px-md-4 py-3">
+      <div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h2><i class="bi bi-journal-text"></i> System Logs</h2>
+        <div class="btn-toolbar mb-2 mb-md-0">
+          <div class="btn-group me-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="refreshLogs">
+              <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button type="button" class="btn btn-sm btn-outline-danger" id="clearLogs">
+              <i class="bi bi-trash"></i> Clear Logs
+            </button>
+          </div>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-primary"
+            id="exportCsv"
+          >
+            <i class="bi bi-download"></i> Export CSV
+          </button>
+        </div>
+        
+      </div>
+
+      <!-- Filters -->
+      <div class="row mb-4 g-2">
+        <div class="col-md-3">
+          <select class="form-select" id="logSeverity">
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="warning">Warning</option>
+            <option value="info">Informational</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <select class="form-select" id="logSource">
+            <option value="">All Sources</option>
+            <option value="system">System</option>
+            <option value="network">Network</option>
+            <option value="device">Device</option>
+            <option value="security">Security</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <input type="date" class="form-control" id="logDate">
+        </div>
+        <div class="col-md-3">
+          <input type="text" class="form-control" id="logSearch" placeholder="Search logs...">
+        </div>
+      </div>
+
+      <!-- Log Table -->
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle" id="logsTable">
+              <thead class="table-light">
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Severity</th>
+                  <th>Source</th>
+                  <th>Device</th>
+                  <th>Message</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="logEntries"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+  let logs = [];
+
+  async function fetchLogs() {
+  try {
+    const res = await fetch('/api/logs/');
+    logs = await res.json();
+    renderLogs(logs);
+  } catch (err) {
+    console.error('Failed to fetch logs:', err);
+  }
+}
+
+
+  // 2️⃣ Render a list of log‐entries into the table body
+  function renderLogs(list) {
+  const tbody = document.getElementById('logEntries');
+  tbody.innerHTML = list.map(l => `
+    <tr class="${l.acknowledged ? 'table-active' : ''}">
+      <td>${l.timestamp}</td>
+      <td><span class="badge ${badgeClass(l.severity)}">${l.severity.toUpperCase()}</span></td>
+      <td>${l.source}</td>
+      <td>${l.device}</td>
+      <td>${l.message}</td>
+      <td>
+        <button
+          class="btn btn-sm ${l.acknowledged ? 'btn-outline-secondary' : 'btn-outline-primary'}"
+          data-id="${l.id}"
+          onclick="toggleAck(this)"
+        >
+          ${l.acknowledged
+            ? '<i class="bi bi-check-circle"></i> Acknowledged'
+            : '<i class="bi bi-exclamation-circle"></i> Acknowledge'
+          }
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+
+  // 3️⃣ Helper to choose badge color
+  function badgeClass(sev) {
+  return {
+    critical: 'bg-danger', // Red for Critical
+    warning: 'bg-warning text-dark', // Yellow for Warning
+    info: 'bg-info' // Blue for Informational
+  }[sev] || 'bg-secondary'; // Default if undefined severity
+}
+
+
+  // 4️⃣ Toggle the “acknowledged” flag in memory and re-render
+  // Replace the toggleAck function with:
+async function toggleAck(btn) {
+    const id = btn.dataset.id;
+    try {
+        const response = await fetch(`/api/logs/${id}/ack/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            // Update local copy
+            const entry = logs.find(x => x.id == id);
+            if (entry) {
+                entry.acknowledged = data.acknowledged;
+                renderLogs(logs);  // Update UI with server response
+            }
+        } else {
+            console.error('Failed to toggle acknowledgement');
+        }
+    } catch (err) {
+        console.error('Error toggling acknowledgement:', err);
+    }
+}
+
+  // 5️⃣ Clear all logs server‑side, then re-fetch
+  async function clearLogs() {
+    if (!confirm('Clear all logs?')) return;
+    try {
+      await fetch('/api/logs/clear/', {
+        method: 'POST',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+      });
+      await fetchLogs();
+    } catch (err) {
+      console.error('Failed to clear logs:', err);
+    }
+  }
+
+  // 6️⃣ Filter in‑memory by severity, source, date & search term
+  function filterLogs() {
+    const sev  = document.getElementById('logSeverity').value;
+    const src  = document.getElementById('logSource').value;
+    const date = document.getElementById('logDate').value;
+    const txt  = document.getElementById('logSearch').value.toLowerCase();
+    const filtered = logs.filter(l =>
+      (!sev   || l.severity === sev) &&
+      (!src   || l.source   === src) &&
+      (!date  || l.timestamp.startsWith(date)) &&
+      (!txt   || l.message.toLowerCase().includes(txt))
+    );
+    renderLogs(filtered);
+  }
+
+  // 7️⃣ Build and download a CSV from the current `logs[]`
+  function exportCsv() {
+    if (!logs.length) return alert('No logs to export.');
+    const header = ['timestamp','severity','source','device','message','acknowledged'];
+    const rows = logs.map(l => [
+      l.timestamp,
+      l.severity,
+      l.source,
+      l.device,
+      `"${l.message.replace(/"/g,'""')}"`,
+      l.acknowledged
+    ]);
+    const csv = [ header.join(','), ...rows.map(r=>r.join(',')) ].join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    downloadBlob(blob, 'logs.csv');
+  }
+
+  // 8️⃣ Utility to trigger a browser download
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href    = url;
+    a.download= filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // 9️⃣ Read a cookie by name (for CSRF)
+  function getCookie(name) {
+    const match = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return match ? match.pop() : '';
+  }
+
+  // 🔟 Wire everything up on load
+  document.addEventListener('DOMContentLoaded', () => {
+    fetchLogs();
+    document.getElementById('refreshLogs').addEventListener('click', fetchLogs);
+    document.getElementById('clearLogs')  .addEventListener('click', clearLogs);
+    document.getElementById('logSeverity').addEventListener('change', filterLogs);
+    document.getElementById('logSource')  .addEventListener('change', filterLogs);
+    document.getElementById('logDate')    .addEventListener('change', filterLogs);
+    document.getElementById('logSearch')  .addEventListener('input',  filterLogs);
+    document.getElementById('exportCsv')  .addEventListener('click',  exportCsv);
+  });
+</script>
+
+</body>
+</html>
